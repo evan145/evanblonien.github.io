@@ -4,7 +4,7 @@ import os
 imdb_key = os.environ.get("imdb_key")
 
 url = "https://api.themoviedb.org/3/search/movie"
-movie_selection = ""
+movie_selection = "Fight Club"
 headers = {
     "accept": "application/json",
     "Authorization": f"Bearer {imdb_key}"
@@ -24,12 +24,10 @@ movie = data["results"][0]
 image_path = movie["backdrop_path"]
 image_url = f"https://image.tmdb.org/t/p/original{image_path}"
 
-# # ==============================================================================
-
 app, rt = fh.fast_app(exts="ws")
 
 def get_movie_image(query):
-    """Fetch movie poster from TMDB API"""
+
     params["query"] = query 
     
     response = httpx.get(url, headers=headers, params=params)
@@ -38,7 +36,7 @@ def get_movie_image(query):
     if data.get("results"):
         movie = data["results"][0]
         if movie.get("backdrop_path"):
-            return f"https://image.tmdb.org/t/p/original{movie["backdrop_path"]}"
+            return f"https://image.tmdb.org/t/p/original{movie['backdrop_path']}"
     return None
 
 def movie_image_card(movie_name: str):
@@ -99,7 +97,7 @@ async def ws(msg: str, send):
         updated_overview = fh.Div(
             fh.H5(f"Overview: {new_movie["overview"]}"),
             id="overview-container",
-            hx_swap_obb="true" # replace existing element
+            hx_swap_oob="true" # replace existing element
         )
     
     # Send both the new movie card and reset the input

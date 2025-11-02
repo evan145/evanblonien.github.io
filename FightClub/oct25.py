@@ -1,12 +1,9 @@
 from fasthtml import common as fh 
 import httpx
-from monsterui import all as mui
-
-hdrs = mui.Theme.red.headers()
-app, rt = fh.fast_app(hdrs=hdrs)
+# from monsterui import all as mui
 
 url = "https://api.themoviedb.org/3/search/movie"
-movie_selection = ""
+movie_selection = "Good Will Hunting"
 headers = {
     "accept": "application/json",
     "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhNWU1NmM5NWQ2ZWYxYjM1NDA4ZmZiOTY1ZTUzMjBjZSIsIm5iZiI6MTc2MDMzMDcwNi44Niwic3ViIjoiNjhlYzgzZDJkNTMzOGM5YjIyNzg0ZDM5Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.Qaf1tWCCoDJjIFha_-HEYFt21gU8QaEpK8kWajY20ks"
@@ -28,7 +25,9 @@ image_url = f"https://image.tmdb.org/t/p/original{image_path}"
 
 # # ==============================================================================
 
-app, rt = fh.fast_app(exts="ws")
+# hdrs = mui.Theme.red.headers()
+# app, rt = fh.fast_app(hdrs=hdrs)
+app, rt = fh.fast_app()
 
 def get_movie_image(query):
     """Fetch movie poster from TMDB API"""
@@ -53,59 +52,58 @@ def movie_image_card(movie_name: str):
         )
     return fh.Card(fh.P(f"No image found for: {movie_name}"))
 
-# Input field that gets reset after sending
-def mk_input(): 
-    return fh.Input(id="msg", placeholder="Enter a movie title", value="", hx_swap_oob="true")
-
 @rt('/')
 def index():
     return fh.Div(
         fh.H1("Movie Search"),
         
-        # Search form
-        fh.Form(mk_input(), ws_send=True),
+        # Search form with HTMX attributes
+        fh.Form(
+            fh.Input(name="query", placeholder="Enter a movie title", required=True),
+            fh.Button("Search", type="submit"),
+            hx_post="/search",
+            hx_target="#results",
+            hx_swap="innerHTML"
+        ),
         
-        # Movie display area - starts with a default movie
+        # Results container
         fh.Div(
+            # Initial movie display
             movie_image_card("Cars 2"),
-            id="movie-container"
-        ),
-        
-        # Show movie
-        fh.Div(
-        fh.H5(f"Overview: {movie["overview"]}"),
-        id="overview-container",
-        ),
-
-        hx_ext="ws", 
-        ws_connect="/ws"
+            fh.Div(
+                fh.H5(f"Overview: {movie['overview']}"),
+                id="overview-container"
+            ),
+            id="results"
+        )
     )
 
-@app.ws("/ws")
-async def ws(msg: str, send):
-    
+@rt('/search', methods=['POST'])
+def search(query: str):
     # Fetch new movie data
-    params["query"] = msg 
+    params["query"] = query 
     
     response = httpx.get(url, headers=headers, params=params)
     data = response.json()
     
     if data.get("results"):
         new_movie = data["results"][0]
-
-    # Create a new movie card with the searched movie
-        movie_card = movie_image_card(msg)
-    
-    # Updated overview 
-        updated_overview = fh.Div(
-            fh.H5(f"Overview: {new_movie["overview"]}"),
-            id="overview-container",
-            hx_swap_obb="true" # replace existing element
+        
+        # Return the updated content
+        return fh.Div(
+            movie_image_card(query),
+            fh.Div(
+                fh.H5(f"Overview: {new_movie['overview']}"),
+                id="overview-container"
+            )
         )
-    
-    # Send both the new movie card and reset the input
-    await send(fh.Div(movie_card, id="movie-container", hx_swap_oob="true"))
-    await send(updated_overview)
-    await send(mk_input())
+    else:
+        return fh.Div(
+            fh.P(f"No results found for: {query}"),
+            fh.Div(
+                fh.H5("No overview available"),
+                id="overview-container"
+            )
+        )
 
 fh.serve()
